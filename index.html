@@ -3,7 +3,7 @@
 </head><body>
 
 <script type="module">
-import { mat4, identity, lookAt, perspective, multiply, rotate, translate, vec3, inverse } from "./mat4.js";
+import { mat4, identity, lookAt, perspective, multiply, rotate, translate, vec3, inverse, rotateQ, vec4, q2vec3 } from "./mat4.js";
 import { createVertexShader, createFragmentShader, createProgram, setAttributeVBO, createVBO, createIBO } from "./glutil.js";
 import { torus } from "./torus.js";
 import { cube } from "./cube.js";
@@ -97,22 +97,11 @@ const uniLightDirection = gl.getUniformLocation(prg, "lightDirection");
 const uniEyeDirection = gl.getUniformLocation(prg, "eyeDirection");
 const uniAmbientColor = gl.getUniformLocation(prg, "ambientColor");
 
-// ビュー×プロジェクション座標変換行列 tmpMatrix
-const tmpMatrix = mat4();
-const calcView = () => {
-  const v = mat4();
-  lookAt(v, [0.0, 0.0, 20.0], [0, 0, 0], [0, 1, 0]);
-  const p = mat4();
-  perspective(p, 45, canvas.width / canvas.height, 0.1, 100);
-  multiply(tmpMatrix, p, v);
-};
-
 // ウィンドウリサイズ時に表示領域再設定
 onresize = () => {
   canvas.width = innerWidth;
   canvas.height = innerHeight;
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-  calcView();
 };
 onresize();
 
@@ -131,11 +120,22 @@ gl.uniform3fv(uniEyeDirection, eyeDirection);
 const ambientColor = [0.1, 0.1, 0.1, 1.0];
 gl.uniform4fv(uniAmbientColor, ambientColor);
 
+// カメラの座標
+const camPosition = vec3();
+
+// カメラの上方向を表すベクトル
+const camUpDirection = vec3();
+
 // 恒常ループ
 const startt = performance.now();
 const mMatrix = mat4(); // 計算用
+const pMatrix = mat4(); // temp
+const vMatrix = mat4(); // temp
+const tmpMatrix = mat4(); // temp
 const mvpMatrix = mat4();
 const invMatrix = mat4();
+const xQuaternion = vec4();
+
 const draw = () => {
   // 経過時間計算
   const t = performance.now() - startt;
@@ -145,9 +145,20 @@ const draw = () => {
   gl.clearDepth(1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+  // クォータニオンによる回転
+  const rad2 = t * 0.001;
+  rotateQ(xQuaternion, rad2, [1, 0.0, 0.0]);
+  q2vec3(camPosition, [0.0, 0.0, 20.0], xQuaternion);
+  q2vec3(camUpDirection, [0.0, 1.0, 0.0], xQuaternion);
+
+  // ビュー×プロジェクション座標変換行列
+  lookAt(vMatrix, camPosition, [0, 0, 0], camUpDirection);
+  perspective(pMatrix, 45, canvas.width / canvas.height, 0.1, 100);
+  multiply(tmpMatrix, pMatrix, vMatrix);
+
   // モデル座標変換行列の生成
   identity(mMatrix);
-  rotate(mMatrix, mMatrix, t * .0005, [0.5, .3, .7]);
+  //rotate(mMatrix, mMatrix, t * .0005, [0.5, .3, .7]);
   multiply(mvpMatrix, tmpMatrix, mMatrix);
 
   // モデル座標変換行列から逆行列を生成
