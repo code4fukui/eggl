@@ -21,13 +21,19 @@ attribute vec4 color;
 uniform   mat4 mvpMatrix;
 uniform   mat4 invMatrix;
 uniform   vec3 lightDirection;
+uniform   vec3 eyeDirection;
+uniform   vec4 ambientColor;
 varying   vec4 vColor;
 
-void main(void) {
-  vec3 invLight = normalize(invMatrix * vec4(lightDirection, 0.0)).xyz;
-  float diffuse = clamp(dot(normal, invLight), 0.1, 1.0);
-  vColor = color * vec4(vec3(diffuse), 1.0);
-  gl_Position = mvpMatrix * vec4(position, 1.0);
+void main(void){
+  vec3  invLight = normalize(invMatrix * vec4(lightDirection, 0.0)).xyz;
+  vec3  invEye   = normalize(invMatrix * vec4(eyeDirection, 0.0)).xyz;
+  vec3  halfLE   = normalize(invLight + invEye);
+  float diffuse  = clamp(dot(normal, invLight), 0.0, 1.0);
+  float specular = pow(clamp(dot(normal, halfLE), 0.0, 1.0), 50.0);
+  vec4  light    = color * vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0);
+  vColor         = light + ambientColor;
+  gl_Position    = mvpMatrix * vec4(position, 1.0);
 }
 `;
 
@@ -62,7 +68,8 @@ const attLocation = [
 const attStride = [3, 3, 4];
 
 // トーラスの頂点データを生成
-const obj = torus(400, 100, 3, 4);
+//const obj = torus(400, 100, 3, 4);
+const obj = torus(6, 10, 3, 4);
 //const obj = cube(8);
 //const obj = sphere(5, 8, 6);
 
@@ -84,6 +91,8 @@ gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 const uniMvpMatrix = gl.getUniformLocation(prg, "mvpMatrix");
 const uniInvMatrix = gl.getUniformLocation(prg, "invMatrix");
 const uniLightDirection = gl.getUniformLocation(prg, "lightDirection");
+const uniEyeDirection = gl.getUniformLocation(prg, "eyeDirection");
+const uniAmbientColor = gl.getUniformLocation(prg, "ambientColor");
 
 // ビュー×プロジェクション座標変換行列 tmpMatrix
 const tmpMatrix = mat4();
@@ -111,6 +120,13 @@ gl.enable(gl.CULL_FACE);
 
 // 並行光源
 const lightDirection = vec3(-0.5, 0.5, 0.5);
+gl.uniform3fv(uniLightDirection, lightDirection);
+// 視点ベクトル
+const eyeDirection = [0.0, 0.0, 20.0];
+gl.uniform3fv(uniEyeDirection, eyeDirection);
+// 環境光の色
+const ambientColor = [0.1, 0.1, 0.1, 1.0];
+gl.uniform4fv(uniAmbientColor, ambientColor);
 
 // 恒常ループ
 const startt = performance.now();
@@ -136,7 +152,6 @@ const draw = () => {
 
   gl.uniformMatrix4fv(uniMvpMatrix, false, mvpMatrix);
   gl.uniformMatrix4fv(uniInvMatrix, false, invMatrix);
-  gl.uniform3fv(uniLightDirection, lightDirection);
   gl.drawElements(gl.TRIANGLES, obj.index.length, gl.UNSIGNED_SHORT, 0);
   
   // コンテキストの再描画
