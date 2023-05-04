@@ -1,187 +1,293 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:">
-<title>wgld.org WebGL sample 009</title>
+<title>wgld.org WebGL2 sample 015</title>
 </head><body>
 
 <script type="module">
 import { mat4, identity, lookAt, perspective, multiply, rotate, translate, vec3, inverse } from "./mat4.js";
-import { createVertexShader, createFragmentShader, createProgram, createVAO } from "./glutil.js";
-import { torus } from "./torus.js";
-import { cube } from "./cube.js";
-import { sphere } from "./sphere.js";
+import { createVertexShader, createFragmentShader, createProgram, createVBO, setAttributeVBO } from "./glutil.js";
+import { waitImageLoad } from "https://js.sabae.cc/waitImageLoad.js";
 
 const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 canvas.onclick = () => canvas.requestFullscreen();
 document.body.style.margin = 0;
+onresize = () => {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+};
+onresize();
+
+const touchHandler = (e) => {
+  if (e.touches.length > 1) {
+    e.preventDefault();
+  }
+};
+addEventListener("touchstart", touchHandler, { passive: false });
 
 const vs = `#version 300 es
-/*
 layout (location = 0) in vec3 position;
-layout (location = 1) in vec3 normal;
+layout (location = 1) in vec3 velocity;
 layout (location = 2) in vec4 color;
-*/
-in vec3 position;
-in vec3 normal;
-in vec4 color;
 
-uniform mat4 mMatrix;
-uniform mat4 mvpMatrix;
-uniform mat4 invMatrix;
+uniform float time;
+uniform vec2 mouse; // -1.0 ~ 1.0
+uniform float move; // 0.0 ~ 1.0
+uniform int imgwidth;
 
 out vec3 vPosition;
-out vec3 vNormal;
-flat out vec4 vColor;
+out vec3 vVelocity;
+out vec4 vColor;
 
 void main() {
+  if (move > 0.001) {
+    vPosition = position + velocity * 0.05 * move;
+    vec3 p = vec3(mouse, sin(time) * 0.25) - position;
+    vVelocity = normalize(velocity + p * 0.2 * move);
+  } else {
+    int n = gl_VertexID;
+    int x = n % imgwidth;
+    int y = n / imgwidth;
+    float w = float(imgwidth / 2);
+    vPosition = vec3(float(x) / w - 1.0, -float(y) / w + 1.0, 0);
+    vVelocity = velocity;
+  }
   vColor = color;
-  vPosition = (mMatrix * vec4(position, 1.0)).xyz;
-  vNormal = (invMatrix * vec4(normal, 0.0)).xyz;
-  gl_Position = mvpMatrix * vec4(position, 1.0);
 }
 `;
 
 const fs = `#version 300 es
 precision highp float;
 
-uniform vec3 lightPosition;
-uniform vec3 eyePosition;
-
-in vec3 vPosition;
-in vec3 vNormal;
-flat in vec4 vColor;
-
 out vec4 outColor;
 
 void main() {
-  vec3 light = normalize(lightPosition - vPosition);
-  vec3 eye = normalize(vPosition - eyePosition);
-  vec3 ref = normalize(reflect(eye, vNormal));
-  float diffuse = max(dot(light, vNormal), 0.8);
-  float specular = max(dot(light, ref), 0.0);
-  specular = pow(specular, 20.0);
-  //outColor = vec4(vColor.rgb * diffuse + specular, vColor.a);
+  outColor = vec4(1.0);
+}
+`;
+
+const vsmain = `#version 300 es
+layout (location = 0) in vec3 position;
+layout (location = 1) in vec3 velocity;
+layout (location = 2) in vec4 color;
+
+uniform mat4 vpMatrix;
+uniform float move;
+
+out vec4 vColor;
+
+void main() {
+  vColor = color; //  + vec4(velocity, 0.0);
+  gl_Position = vpMatrix * vec4(position, 1.0);
+  gl_PointSize = 1.0; // * (1.0 + move);
+}
+`;
+
+const fsmain = `#version 300 es
+precision highp float;
+
+in vec4 vColor;
+out vec4 outColor;
+
+void main() {
   outColor = vColor;
 }
 `;
 
-// webglコンテキストを取得
+// canvas
+const mousePosition = [0.0, 0.0];
+let isMousedown = false;
+let mouseMovePower = 0.0;
+
+// mousemove event
+canvas.addEventListener("mousedown", function(eve){
+  isMousedown = true;
+  mouseMovePower = 1.0;
+}, false);
+canvas.addEventListener("mouseup", function(eve){
+  isMousedown = false;
+}, false);
+canvas.addEventListener("mousemove", (e) => {
+  const bound = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - bound.left;
+  const y = e.clientY - bound.top;
+  mousePosition[0] = x / bound.width * 2.0 - 1.0;
+  mousePosition[1] = -(y / bound.height * 2.0 - 1.0);
+}, false);
+
+// generate imagedata
+const img = new Image();
+//img.src = "lenna.jpg";
+img.src = "sabae.jpg";
+await waitImageLoad(img);
+const c = document.createElement("canvas");
+const ctx = c.getContext("2d");
+const imageWidth = img.width;
+const imageHeight = img.height;
+c.width = img.width;
+c.height = img.height;
+ctx.drawImage(img, 0, 0, imageWidth, imageHeight);
+const targetImageData = ctx.getImageData(0, 0, imageWidth, imageHeight);
+
+// transform feedback object
 const gl = canvas.getContext("webgl2");
+const transformFeedback = gl.createTransformFeedback();
+gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
 
-// 頂点シェーダとフラグメントシェーダの生成
-const v_shader = createVertexShader(gl, vs);
-const f_shader = createFragmentShader(gl, fs);
-
-// プログラムオブジェクトの生成とリンク
-const prg = createProgram(gl, v_shader, f_shader);
-
-// attributeLocationを配列に取得
-const attLocation = [
-  gl.getAttribLocation(prg, "position"),
-  gl.getAttribLocation(prg, "normal"),
-  gl.getAttribLocation(prg, "color"),
+// transform out shader
+const prg = createProgram(
+  gl,
+  createVertexShader(gl, vs),
+  createFragmentShader(gl, fs),
+  ["vPosition", "vVelocity", "vColor"] // out variable names
+);
+const attLocation = [0, 1, 2];
+const attStride = [3, 3, 4];
+const uniLocation = [
+  gl.getUniformLocation(prg, "time"),
+  gl.getUniformLocation(prg, "mouse"),
+  gl.getUniformLocation(prg, "move"),
+  gl.getUniformLocation(prg, "imgwidth"),
 ];
 
-// attributeの要素数を配列に格納
-const attStride = [3, 3, 4];
-
-// トーラスの頂点データを生成
-//const obj = torus(400, 100, 3, 4);
-const obj = torus(6, 10, 3, 4);
-//const obj = cube(8);
-//const obj = sphere(5, 8, 6);
-
-// VAOの生成
-const obj_vao = createVAO(gl,
-  [obj.position, obj.normal, obj.color],
-  attLocation,
-  attStride,
-  obj.index
+// feedback in shader
+const fPrg = createProgram(
+  gl,
+  createVertexShader(gl, vsmain),
+  createFragmentShader(gl, fsmain)
 );
-gl.bindVertexArray(obj_vao);
+const fAttLocation = [0, 1, 2];
+const fAttStride = [3, 3, 4];
+const fUniLocation = [
+  gl.getUniformLocation(fPrg, "vpMatrix"),
+  gl.getUniformLocation(fPrg, "move"),
+];
 
-// uniformLocationの取得
-const uniMvpMatrix = gl.getUniformLocation(prg, "mvpMatrix");
-const uniMMatrix = gl.getUniformLocation(prg, "mMatrix");
-const uniInvMatrix = gl.getUniformLocation(prg, "invMatrix");
-const uniLightPosition = gl.getUniformLocation(prg, "lightPosition");
-const uniLightDirection = gl.getUniformLocation(prg, "lightDirection");
-const uniEyeDirection = gl.getUniformLocation(prg, "eyeDirection");
-const uniAmbientColor = gl.getUniformLocation(prg, "ambientColor");
-const uniCameraPosition = gl.getUniformLocation(prg, "cameraPosition");
+// vertices
+const position = [];
+const velocity = [];
+const color = [];
+{
+  for (let i = 0; i < imageHeight; i++) {
+    const y = i / imageHeight * 2.0 - 1.0;
+    const k = i * imageWidth;
+    for (let j = 0; j < imageWidth; j++) {
+      const x = j / imageWidth * 2.0 - 1.0;
+      const l = (k + j) * 4;
+      position.push(x, -y, 0.0);
+      const m = Math.sqrt(x * x + y * y);
+      velocity.push(x / m, -y / m, 0.0);
+      color.push(
+        targetImageData.data[l]     / 255,
+        targetImageData.data[l + 1] / 255,
+        targetImageData.data[l + 2] / 255,
+        targetImageData.data[l + 3] / 255
+      );
+    }
+  }
+}
+console.log(position.length / 3)
 
-// ビュー×プロジェクション座標変換行列 tmpMatrix
-const cameraPosition = vec3(0.0, 0.0, 20.0);
-gl.uniform3fv(uniCameraPosition, cameraPosition);
-const tmpMatrix = mat4();
-const calcView = () => {
-  const v = mat4();
-  lookAt(v, cameraPosition, [0, 0, 0], [0, 1, 0]);
-  const p = mat4();
-  perspective(p, 45, canvas.width / canvas.height, 0.1, 100);
-  multiply(tmpMatrix, p, v);
-};
+// create vbo
+const vbos = [
+  [
+    createVBO(gl, position),
+    createVBO(gl, velocity),
+    createVBO(gl, color)
+  ], [
+    createVBO(gl, position),
+    createVBO(gl, velocity),
+    createVBO(gl, color)
+  ]
+];
 
-// ウィンドウリサイズ時に表示領域再設定
-onresize = () => {
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-  calcView();
-};
-onresize();
+// matrix
+const mat = mat4();
+const vMatrix = mat4();
+const pMatrix = mat4();
+const vpMatrix = mat4();
+lookAt(vMatrix, [0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+perspective(pMatrix, 60, canvas.width / canvas.height, 0.1, 10.0);
+multiply(vpMatrix, pMatrix, vMatrix);
 
-// カリングと深度テストを有効にする
-gl.enable(gl.DEPTH_TEST);
-gl.depthFunc(gl.LEQUAL);
-gl.enable(gl.CULL_FACE);
+// flags
+gl.disable(gl.DEPTH_TEST);
+gl.disable(gl.CULL_FACE);
+gl.enable(gl.BLEND);
+gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
+gl.disable(gl.RASTERIZER_DISCARD);
 
-// 並行光源
-const lightDirection = vec3(-0.5, 0.5, 0.5);
-gl.uniform3fv(uniLightDirection, lightDirection);
-// 点光源？
-const lightPosition = [25.0, 2.0, -25.0];
-gl.uniform3fv(uniLightPosition, lightPosition);
-// 視点ベクトル
-const eyeDirection = [0.0, 0.0, 20.0];
-gl.uniform3fv(uniEyeDirection, eyeDirection);
-// 環境光の色
-const ambientColor = [0.1, 0.1, 0.1, 1.0];
-gl.uniform4fv(uniAmbientColor, ambientColor);
+// setting
+const startTime = performance.now();
+let nowTime = 0;
+let count = 0;
 
-// 恒常ループ
-const startt = performance.now();
-const mMatrix = mat4(); // 計算用
-const mvpMatrix = mat4();
-const invMatrix = mat4();
-const draw = () => {
-  // 経過時間計算
-  const t = performance.now() - startt;
+const render = () => {
+  nowTime = performance.now() - startTime;
 
-  // canvasを初期化
+  // mouse move power
+  if (!isMousedown) {
+    mouseMovePower *= 0.99;
+  }
+
+  // increment
+  ++count;
+  const countIndex = count % 2;
+  const invertIndex = 1 - countIndex;
+
+  // program
+  gl.useProgram(prg);
+
+  // set vbo
+  setAttributeVBO(gl, vbos[countIndex], attLocation, attStride);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, vbos[invertIndex][0]);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, vbos[invertIndex][1]);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, vbos[invertIndex][2]);
+
+  // begin transform feedback
+  gl.enable(gl.RASTERIZER_DISCARD);
+  gl.beginTransformFeedback(gl.POINTS);
+
+  // vertex transform
+  gl.uniform1f(uniLocation[0], nowTime);
+  gl.uniform2fv(uniLocation[1], mousePosition);
+  gl.uniform1f(uniLocation[2], mouseMovePower);
+  gl.uniform1i(uniLocation[3], imageWidth);
+  gl.drawArrays(gl.POINTS, 0, position.length / 3);
+
+  // end transform feedback
+  gl.disable(gl.RASTERIZER_DISCARD);
+  gl.endTransformFeedback();
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, null);
+
+  // clear
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
   gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  gl.viewport(0, 0, canvas.width, canvas.height);
 
-  // モデル座標変換行列の生成
-  identity(mMatrix);
-  rotate(mMatrix, mMatrix, t * .0005, [0.5, .3, .7]);
-  multiply(mvpMatrix, tmpMatrix, mMatrix);
+  // program
+  gl.useProgram(fPrg);
 
-  // モデル座標変換行列から逆行列を生成
-  inverse(invMatrix, mMatrix);
+  // set vbo
+  setAttributeVBO(gl, vbos[invertIndex], fAttLocation, fAttStride);
 
-  gl.uniformMatrix4fv(uniMMatrix, false, mMatrix);
-  gl.uniformMatrix4fv(uniMvpMatrix, false, mvpMatrix);
-  gl.uniformMatrix4fv(uniInvMatrix, false, invMatrix);
-  gl.drawElements(gl.TRIANGLES, obj.index.length, gl.UNSIGNED_SHORT, 0);
+  // push and render
+  gl.uniformMatrix4fv(fUniLocation[0], false, vpMatrix);
+  gl.uniform1f(fUniLocation[1], mouseMovePower);
+  gl.drawArrays(gl.POINTS, 0, position.length / 3);
+  //gl.drawArrays(gl.LINES, 0, position.length / 3);
+  //gl.drawArrays(gl.LINE_STRIP, 0, position.length / 3);
+  //gl.drawArrays(gl.LINE_LOOP, 0, position.length / 3);
   
-  // コンテキストの再描画
   gl.flush();
-  
-  // 次の描画タイミングに再度呼ぶ
-  requestAnimationFrame(draw);
+
+  // animation loop
+  requestAnimationFrame(render);
 };
-draw();
+render();
+
 </script>
 
 </body></html>
