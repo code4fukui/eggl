@@ -16,43 +16,46 @@ document.body.style.margin = 0;
 
 const vs = `
 attribute vec3 position;
-attribute vec3 normal;
 attribute vec4 color;
+uniform   mat4 mMatrix;
 uniform   mat4 mvpMatrix;
-varying   vec3 vNormal;
 varying   vec4 vColor;
+varying   vec4 vPosition;
 
 void main(void){
-  vNormal     = normal;
   vColor      = color;
+  vPosition   = mMatrix * vec4(position, 1.0);
   gl_Position = mvpMatrix * vec4(position, 1.0);
 }
 `;
 
 const fs = `
+#extension GL_OES_standard_derivatives : enable
+
 precision mediump float;
 
-uniform mat4 invMatrix;
 uniform vec3 lightDirection;
-uniform vec3 eyeDirection;
 uniform vec4 ambientColor;
-varying vec3 vNormal;
 varying vec4 vColor;
+varying vec4 vPosition;
 
 void main(void){
-  vec3  invLight  = normalize(invMatrix * vec4(lightDirection, 0.0)).xyz;
-  vec3  invEye    = normalize(invMatrix * vec4(eyeDirection, 0.0)).xyz;
-  vec3  halfLE    = normalize(invLight + invEye);
-  float diffuse   = clamp(dot(vNormal, invLight), 0.0, 1.0);
-  float specular  = pow(clamp(dot(vNormal, halfLE), 0.0, 1.0), 50.0);
-  vec4  destColor = vColor * vec4(vec3(diffuse), 1.0) + vec4(vec3(specular), 1.0) + ambientColor;
-  gl_FragColor    = destColor;
+  vec3 dx = dFdx(vPosition.xyz);
+  vec3 dy = dFdy(vPosition.xyz);
+  vec3 n = normalize(cross(normalize(dx), normalize(dy)));
+
+  vec3 light = normalize(lightDirection);
+  float diff = clamp(dot(n, light), 0.0, 1.0);
+  gl_FragColor = vec4(vColor.rgb * diff, 1.0) + ambientColor;
 }
 `;
 
 // webglコンテキストを取得
 const gl = canvas.getContext("webgl");
 
+if(!gl.getExtension('OES_standard_derivatives')){
+  throw new Error('OES_standard_derivatives is not supported');
+}
 // 頂点シェーダとフラグメントシェーダの生成
 const v_shader = createVertexShader(gl, vs);
 const f_shader = createFragmentShader(gl, fs);
@@ -63,12 +66,11 @@ const prg = createProgram(gl, v_shader, f_shader);
 // attributeLocationを配列に取得
 const attLocation = [
   gl.getAttribLocation(prg, "position"),
-  gl.getAttribLocation(prg, "normal"),
   gl.getAttribLocation(prg, "color"),
 ];
 
 // attributeの要素数を配列に格納
-const attStride = [3, 3, 4];
+const attStride = [3, 4];
 
 // トーラスの頂点データを生成
 //const obj = torus(400, 100, 3, 4);
@@ -78,11 +80,10 @@ const obj = torus(6, 10, 3, 4);
 
 // VBOの生成
 const pos_vbo = createVBO(gl, obj.position);
-const nor_vbo = createVBO(gl, obj.normal);
 const col_vbo = createVBO(gl, obj.color);
 
 // VBO を登録する
-setAttributeVBO(gl, [pos_vbo, nor_vbo, col_vbo], attLocation, attStride);
+setAttributeVBO(gl, [pos_vbo, col_vbo], attLocation, attStride);
 
 // IBOの生成
 const ibo = createIBO(gl, obj.index);
@@ -92,6 +93,7 @@ gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 
 // uniformLocationの取得
 const uniMvpMatrix = gl.getUniformLocation(prg, "mvpMatrix");
+const uniMMatrix = gl.getUniformLocation(prg, "mMatrix");
 const uniInvMatrix = gl.getUniformLocation(prg, "invMatrix");
 const uniLightDirection = gl.getUniformLocation(prg, "lightDirection");
 const uniEyeDirection = gl.getUniformLocation(prg, "eyeDirection");
@@ -153,6 +155,7 @@ const draw = () => {
   // モデル座標変換行列から逆行列を生成
   inverse(invMatrix, mMatrix);
 
+  gl.uniformMatrix4fv(uniMMatrix, false, mMatrix);
   gl.uniformMatrix4fv(uniMvpMatrix, false, mvpMatrix);
   gl.uniformMatrix4fv(uniInvMatrix, false, invMatrix);
   gl.drawElements(gl.TRIANGLES, obj.index.length, gl.UNSIGNED_SHORT, 0);
