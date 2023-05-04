@@ -4,7 +4,7 @@
 
 <script type="module">
 import { mat4, identity, lookAt, perspective, multiply, rotate, translate, vec3, inverse } from "./mat4.js";
-import { createVertexShader, createFragmentShader, createProgram, setAttributeVBO, createVBO, createIBO } from "./glutil.js";
+import { createVertexShader, createFragmentShader, createProgram, setAttributeVBO, createVBO, createIBO, createVAO } from "./glutil.js";
 import { torus } from "./torus.js";
 import { cube } from "./cube.js";
 import { sphere } from "./sphere.js";
@@ -15,22 +15,27 @@ canvas.onclick = () => canvas.requestFullscreen();
 document.body.style.margin = 0;
 
 const vs = `#version 300 es
+/*
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 normal;
 layout (location = 2) in vec4 color;
+*/
+in vec3 position;
+in vec3 normal;
+in vec4 color;
 
 uniform mat4 mMatrix;
 uniform mat4 mvpMatrix;
-uniform mat4 normalMatrix;
+uniform mat4 invMatrix;
 
 out vec3 vPosition;
-flat out vec3 vNormal;
+out vec3 vNormal;
 flat out vec4 vColor;
 
 void main() {
   vColor = color;
   vPosition = (mMatrix * vec4(position, 1.0)).xyz;
-  vNormal = (normalMatrix * vec4(normal, 0.0)).xyz;
+  vNormal = (invMatrix * vec4(normal, 0.0)).xyz;
   gl_Position = mvpMatrix * vec4(position, 1.0);
 }
 `;
@@ -42,7 +47,7 @@ uniform vec3 lightPosition;
 uniform vec3 eyePosition;
 
 in vec3 vPosition;
-flat in vec3 vNormal;
+in vec3 vNormal;
 flat in vec4 vColor;
 
 out vec4 outColor;
@@ -102,15 +107,19 @@ gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
 const uniMvpMatrix = gl.getUniformLocation(prg, "mvpMatrix");
 const uniMMatrix = gl.getUniformLocation(prg, "mMatrix");
 const uniInvMatrix = gl.getUniformLocation(prg, "invMatrix");
+const uniLightPosition = gl.getUniformLocation(prg, "lightPosition");
 const uniLightDirection = gl.getUniformLocation(prg, "lightDirection");
 const uniEyeDirection = gl.getUniformLocation(prg, "eyeDirection");
 const uniAmbientColor = gl.getUniformLocation(prg, "ambientColor");
+const uniCameraPosition = gl.getUniformLocation(prg, "cameraPosition");
 
 // ビュー×プロジェクション座標変換行列 tmpMatrix
+const cameraPosition = vec3(0.0, 0.0, 20.0);
+gl.uniform3fv(uniCameraPosition, cameraPosition);
 const tmpMatrix = mat4();
 const calcView = () => {
   const v = mat4();
-  lookAt(v, [0.0, 0.0, 20.0], [0, 0, 0], [0, 1, 0]);
+  lookAt(v, cameraPosition, [0, 0, 0], [0, 1, 0]);
   const p = mat4();
   perspective(p, 45, canvas.width / canvas.height, 0.1, 100);
   multiply(tmpMatrix, p, v);
@@ -133,6 +142,9 @@ gl.enable(gl.CULL_FACE);
 // 並行光源
 const lightDirection = vec3(-0.5, 0.5, 0.5);
 gl.uniform3fv(uniLightDirection, lightDirection);
+// 点光源？
+const lightPosition = [25.0, 2.0, -25.0];
+gl.uniform3fv(uniLightPosition, lightPosition);
 // 視点ベクトル
 const eyeDirection = [0.0, 0.0, 20.0];
 gl.uniform3fv(uniEyeDirection, eyeDirection);
