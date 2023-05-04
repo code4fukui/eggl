@@ -21,7 +21,7 @@ export const createFragmentShader = (gl, src) => {
 };
 
 // プログラムオブジェクトを生成しシェーダをリンクする関数
-export const createProgram = (gl, vs, fs) => {
+export const createProgram = (gl, vs, fs, varyings = undefined) => {
   // プログラムオブジェクトの生成
   const program = gl.createProgram();
   
@@ -29,6 +29,10 @@ export const createProgram = (gl, vs, fs) => {
   gl.attachShader(program, vs);
   gl.attachShader(program, fs);
   
+  // トランスフォーム用の変数がある場合
+  if (varyings) {
+    gl.transformFeedbackVaryings(program, varyings, gl.SEPARATE_ATTRIBS);
+  }
   // シェーダをリンク
   gl.linkProgram(program);
   
@@ -84,4 +88,24 @@ export const createIBO = (gl, data) => {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, null);
   // 生成したIBOを返して終了
   return ibo;
+};
+
+// VAOを生成する関数
+export const createVAO = (gl, vboDataArray, attL, attS, iboData = undefined) => {
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  for (const i in vboDataArray) {
+    const vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vboDataArray[i]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(attL[i]);
+    gl.vertexAttribPointer(attL[i], attS[i], gl.FLOAT, false, 0, 0);
+  }
+  if (iboData) {
+    const ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(iboData), gl.STATIC_DRAW);
+  }
+  gl.bindVertexArray(null);
+  return vao;
 };
