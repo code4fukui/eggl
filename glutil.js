@@ -21,7 +21,7 @@ export const createFragmentShader = (gl, src) => {
 };
 
 // プログラムオブジェクトを生成しシェーダをリンクする関数
-export const createProgram = (gl, vs, fs) => {
+export const createProgram = (gl, vs, fs, varyings = undefined) => {
   // プログラムオブジェクトの生成
   const program = gl.createProgram();
   
@@ -29,6 +29,10 @@ export const createProgram = (gl, vs, fs) => {
   gl.attachShader(program, vs);
   gl.attachShader(program, fs);
   
+  // トランスフォーム用の変数がある場合
+  if (varyings) {
+    gl.transformFeedbackVaryings(program, varyings, gl.SEPARATE_ATTRIBS);
+  }
   // シェーダをリンク
   gl.linkProgram(program);
   
@@ -87,7 +91,7 @@ export const createIBO = (gl, data) => {
 };
 
 // VAOを生成する関数
-export const createVAO = (gl, vboDataArray, attL, attS, iboData) => {
+export const createVAO = (gl, vboDataArray, attL, attS, iboData = undefined) => {
   const vao = gl.createVertexArray();
   gl.bindVertexArray(vao);
   for (const i in vboDataArray) {
