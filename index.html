@@ -30,24 +30,24 @@ layout (location = 1) in vec3 velocity;
 layout (location = 2) in vec4 color;
 
 uniform float time;
-uniform vec2 mouse; // -1.0 ~ 1.0
-uniform float move; // 0.0 ~ 1.0
-uniform int imgwidth;
+uniform vec2 mousePosition; // -1.0 ~ 1.0
+uniform float mouseMovePower; // 0.0 ~ 1.0
+uniform int imageWidth;
 
 out vec3 vPosition;
 out vec3 vVelocity;
 out vec4 vColor;
 
 void main() {
-  if (move > 0.001) {
-    vPosition = position + velocity * 0.05 * move;
-    vec3 p = vec3(mouse, sin(time) * 0.25) - position;
-    vVelocity = normalize(velocity + p * 0.2 * move);
+  if (mouseMovePower > 0.001) {
+    vPosition = position + velocity * 0.07 * mouseMovePower;
+    vec3 p = vec3(mousePosition, sin(time) * 0.25) - position;
+    vVelocity = normalize(velocity + p * 0.2 * mouseMovePower);
   } else {
     int n = gl_VertexID;
-    int x = n % imgwidth;
-    int y = n / imgwidth;
-    float w = float(imgwidth / 2);
+    int x = n % imageWidth;
+    int y = n / imageWidth;
+    float w = float(imageWidth / 2);
     vPosition = vec3(float(x) / w - 1.0, -float(y) / w + 1.0, 0);
     vVelocity = velocity;
   }
@@ -71,14 +71,13 @@ layout (location = 1) in vec3 velocity;
 layout (location = 2) in vec4 color;
 
 uniform mat4 vpMatrix;
-uniform float move;
 
 out vec4 vColor;
 
 void main() {
-  vColor = color; //  + vec4(velocity, 0.0);
+  vColor = color;
   gl_Position = vpMatrix * vec4(position, 1.0);
-  gl_PointSize = 1.0; // * (1.0 + move);
+  gl_PointSize = 1.0;
 }
 `;
 
@@ -99,11 +98,11 @@ let isMousedown = false;
 let mouseMovePower = 0.0;
 
 // mousemove event
-canvas.addEventListener("mousedown", function(eve){
+canvas.addEventListener("mousedown", (e) => {
   isMousedown = true;
   mouseMovePower = 1.0;
 }, false);
-canvas.addEventListener("mouseup", function(eve){
+canvas.addEventListener("mouseup", (e) => {
   isMousedown = false;
 }, false);
 canvas.addEventListener("mousemove", (e) => {
@@ -116,7 +115,6 @@ canvas.addEventListener("mousemove", (e) => {
 
 // generate imagedata
 const img = new Image();
-//img.src = "lenna.jpg";
 img.src = "sabae.jpg";
 await waitImageLoad(img);
 const c = document.createElement("canvas");
@@ -142,25 +140,22 @@ const prg = createProgram(
 );
 const attLocation = [0, 1, 2];
 const attStride = [3, 3, 4];
-const uniLocation = [
-  gl.getUniformLocation(prg, "time"),
-  gl.getUniformLocation(prg, "mouse"),
-  gl.getUniformLocation(prg, "move"),
-  gl.getUniformLocation(prg, "imgwidth"),
-];
+
+const timeUni = gl.getUniformLocation(prg, "time");
+const mousePositionUni = gl.getUniformLocation(prg, "mousePosition");
+const mouseMovePowerUni = gl.getUniformLocation(prg, "mouseMovePower");
+const imageWidthUni = gl.getUniformLocation(prg, "imageWidth");
 
 // feedback in shader
-const fPrg = createProgram(
+const prg2 = createProgram(
   gl,
   createVertexShader(gl, vsmain),
   createFragmentShader(gl, fsmain)
 );
-const fAttLocation = [0, 1, 2];
-const fAttStride = [3, 3, 4];
-const fUniLocation = [
-  gl.getUniformLocation(fPrg, "vpMatrix"),
-  gl.getUniformLocation(fPrg, "move"),
-];
+const attLocation2 = [0, 1, 2];
+const attStride2 = [3, 3, 4];
+
+const vpMatrixUni2 = gl.getUniformLocation(prg2, "vpMatrix");
 
 // vertices
 const position = [];
@@ -201,7 +196,6 @@ const vbos = [
 ];
 
 // matrix
-const mat = mat4();
 const vMatrix = mat4();
 const pMatrix = mat4();
 const vpMatrix = mat4();
@@ -218,23 +212,23 @@ gl.disable(gl.RASTERIZER_DISCARD);
 
 // setting
 const startTime = performance.now();
-let nowTime = 0;
-let count = 0;
+let time = 0;
+let idx = 0;
 
 const render = () => {
-  nowTime = performance.now() - startTime;
+  time = performance.now() - startTime;
 
   // mouse move power
   if (!isMousedown) {
-    mouseMovePower *= 0.99;
+    mouseMovePower *= 0.97;
   }
 
   // increment
-  ++count;
-  const countIndex = count % 2;
+  const countIndex = idx;
   const invertIndex = 1 - countIndex;
+  idx = 1 - idx;
 
-  // program
+  // program (GPGPU)
   gl.useProgram(prg);
 
   // set vbo
@@ -248,10 +242,10 @@ const render = () => {
   gl.beginTransformFeedback(gl.POINTS);
 
   // vertex transform
-  gl.uniform1f(uniLocation[0], nowTime);
-  gl.uniform2fv(uniLocation[1], mousePosition);
-  gl.uniform1f(uniLocation[2], mouseMovePower);
-  gl.uniform1i(uniLocation[3], imageWidth);
+  gl.uniform1f(timeUni, time);
+  gl.uniform2fv(mousePositionUni, mousePosition);
+  gl.uniform1f(mouseMovePowerUni, mouseMovePower);
+  gl.uniform1i(imageWidthUni, imageWidth);
   gl.drawArrays(gl.POINTS, 0, position.length / 3);
 
   // end transform feedback
@@ -261,6 +255,8 @@ const render = () => {
   gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
   gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, null);
 
+  // feedback
+
   // clear
   gl.clearColor(0.0, 0.0, 0.0, 1.0);
   gl.clearDepth(1.0);
@@ -268,14 +264,13 @@ const render = () => {
   gl.viewport(0, 0, canvas.width, canvas.height);
 
   // program
-  gl.useProgram(fPrg);
+  gl.useProgram(prg2);
 
   // set vbo
-  setAttributeVBO(gl, vbos[invertIndex], fAttLocation, fAttStride);
+  setAttributeVBO(gl, vbos[invertIndex], attLocation2, attStride2);
 
   // push and render
-  gl.uniformMatrix4fv(fUniLocation[0], false, vpMatrix);
-  gl.uniform1f(fUniLocation[1], mouseMovePower);
+  gl.uniformMatrix4fv(vpMatrixUni2, false, vpMatrix);
   gl.drawArrays(gl.POINTS, 0, position.length / 3);
   //gl.drawArrays(gl.LINES, 0, position.length / 3);
   //gl.drawArrays(gl.LINE_STRIP, 0, position.length / 3);
