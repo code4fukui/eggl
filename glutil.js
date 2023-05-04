@@ -85,3 +85,23 @@ export const createIBO = (gl, data) => {
   // 生成したIBOを返して終了
   return ibo;
 };
+
+// VAOを生成する関数
+export const createVAO = (gl, vboDataArray, attL, attS, iboData) => {
+  const vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+  for (const i in vboDataArray) {
+    const vbo = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(vboDataArray[i]), gl.STATIC_DRAW);
+    gl.enableVertexAttribArray(attL[i]);
+    gl.vertexAttribPointer(attL[i], attS[i], gl.FLOAT, false, 0, 0);
+  }
+  if (iboData) {
+    const ibo = gl.createBuffer();
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+    gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Int16Array(iboData), gl.STATIC_DRAW);
+  }
+  gl.bindVertexArray(null);
+  return vao;
+};

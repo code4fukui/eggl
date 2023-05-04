@@ -4,7 +4,7 @@
 
 <script type="module">
 import { mat4, identity, lookAt, perspective, multiply, rotate, translate, vec3, inverse } from "./mat4.js";
-import { createVertexShader, createFragmentShader, createProgram, setAttributeVBO, createVBO, createIBO, createVAO } from "./glutil.js";
+import { createVertexShader, createFragmentShader, createProgram, createVAO } from "./glutil.js";
 import { torus } from "./torus.js";
 import { cube } from "./cube.js";
 import { sphere } from "./sphere.js";
@@ -59,7 +59,8 @@ void main() {
   float diffuse = max(dot(light, vNormal), 0.8);
   float specular = max(dot(light, ref), 0.0);
   specular = pow(specular, 20.0);
-  outColor = vec4(vColor.rgb * diffuse + specular, vColor.a);
+  //outColor = vec4(vColor.rgb * diffuse + specular, vColor.a);
+  outColor = vColor;
 }
 `;
 
@@ -89,19 +90,14 @@ const obj = torus(6, 10, 3, 4);
 //const obj = cube(8);
 //const obj = sphere(5, 8, 6);
 
-// VBOの生成
-const pos_vbo = createVBO(gl, obj.position);
-const nor_vbo = createVBO(gl, obj.normal);
-const col_vbo = createVBO(gl, obj.color);
-
-// VBO を登録する
-setAttributeVBO(gl, [pos_vbo, nor_vbo, col_vbo], attLocation, attStride);
-
-// IBOの生成
-const ibo = createIBO(gl, obj.index);
-
-// IBOをバインドして登録する
-gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, ibo);
+// VAOの生成
+const obj_vao = createVAO(gl,
+  [obj.position, obj.normal, obj.color],
+  attLocation,
+  attStride,
+  obj.index
+);
+gl.bindVertexArray(obj_vao);
 
 // uniformLocationの取得
 const uniMvpMatrix = gl.getUniformLocation(prg, "mvpMatrix");
