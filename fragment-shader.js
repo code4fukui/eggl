@@ -14,7 +14,7 @@ export class FragmentShader extends HTMLElement {
     //document.body.style.margin = 0;
     const limitw = this.getAttribute("width");
     
-    onresize = () => {
+    const resizeHandler = () => {
       const pw = this.clientWidth;
       const ph = this.clientHeight;
       const [w, h] = (() => {
@@ -35,8 +35,8 @@ export class FragmentShader extends HTMLElement {
       canvas.style.width = pw + "px";
       canvas.style.height = ph + "px";
     };
-    onresize();
-    
+    addEventListener("resize", resizeHandler);
+    resizeHandler();
     
     const gl = canvas.getContext("webgl2");
     
