@@ -37,7 +37,7 @@ void main(void) {
 `;
 
 // シェーダ周りの初期化
-const prg = createProgram(gl, createVertexShader(gl, vs), createFragmentShader(gl, fs.textContent));
+const prg = createProgram(gl, createVertexShader(gl, vs), createFragmentShader(gl, fs.textContent.trim()));
 const timeUni = gl.getUniformLocation(prg, "time");
 const mouseUni = gl.getUniformLocation(prg, "mouse");
 const resolutionUni = gl.getUniformLocation(prg, "resolution");
