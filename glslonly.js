@@ -14,7 +14,7 @@
 // ・シェーダのエラーで表示される行番号は一致するように HTML を書いてあります
 // 
 // ============================================================================
-import { createVertexShader, createFragmentShader, createProgram, setAttributeVBO, createVBO, createIBO } from "https://code4fukui.github.io/eggl/glutil.js";
+import { createVertexShader, createFragmentShader, createProgram, createVBO, createIBO } from "https://code4fukui.github.io/eggl/glutil.js";
 
 const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
@@ -26,7 +26,7 @@ onresize = () => {
 };
 onresize();
 
-const gl = canvas.getContext('webgl');
+const gl = canvas.getContext("webgl");
 
 const vs = `
 attribute vec3 position;
@@ -38,9 +38,9 @@ void main(void) {
 
 // シェーダ周りの初期化
 const prg = createProgram(gl, createVertexShader(gl, vs), createFragmentShader(gl, fs.textContent));
-const timeUni = gl.getUniformLocation(prg, 'time');
-const mouseUni = gl.getUniformLocation(prg, 'mouse');
-const resolutionUni = gl.getUniformLocation(prg, 'resolution');
+const timeUni = gl.getUniformLocation(prg, "time");
+const mouseUni = gl.getUniformLocation(prg, "mouse");
+const resolutionUni = gl.getUniformLocation(prg, "resolution");
 
 // 頂点データ回りの初期化
 const position = [
@@ -55,7 +55,7 @@ const index = [
 ];
 const vPosition = createVBO(gl, position);
 const vIndex = createIBO(gl, index);
-const vAttLocation = gl.getAttribLocation(prg, 'position');
+const vAttLocation = gl.getAttribLocation(prg, "position");
 gl.bindBuffer(gl.ARRAY_BUFFER, vPosition);
 gl.enableVertexAttribArray(vAttLocation);
 gl.vertexAttribPointer(vAttLocation, 3, gl.FLOAT, false, 0, 0);
@@ -67,7 +67,7 @@ gl.clearColor(0.0, 0.0, 0.0, 1.0);
 let mx = 0.5;
 let my = 0.5;
 // イベントリスナー登録
-canvas.addEventListener('mousemove', (e) => {
+canvas.addEventListener("mousemove", (e) => {
   mx = e.offsetX / canvas.width;
   my = e.offsetY / canvas.height;
 }, true);
