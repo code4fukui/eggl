@@ -25,9 +25,9 @@ const touchHandler = (e) => {
 addEventListener("touchstart", touchHandler, { passive: false });
 
 const vs = `#version 300 es
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec3 velocity;
-layout (location = 2) in vec4 color;
+in vec3 position;
+in vec3 velocity;
+in vec4 color;
 
 uniform float time;
 uniform vec2 mousePosition; // -1.0 ~ 1.0
@@ -58,17 +58,15 @@ void main() {
 const fs = `#version 300 es
 precision highp float;
 
-out vec4 outColor;
-
 void main() {
-  outColor = vec4(1.0);
+  discard;
 }
 `;
 
 const vsmain = `#version 300 es
-layout (location = 0) in vec3 position;
-layout (location = 1) in vec3 velocity;
-layout (location = 2) in vec4 color;
+in vec3 position;
+in vec3 velocity;
+in vec4 color;
 
 uniform mat4 vpMatrix;
 
@@ -138,7 +136,11 @@ const prg = createProgram(
   createFragmentShader(gl, fs),
   ["vPosition", "vVelocity", "vColor"] // out variable names
 );
-const attLocation = [0, 1, 2];
+const attLocation = [
+  gl.getAttribLocation(prg, "position"),
+  gl.getAttribLocation(prg, "velocity"),
+  gl.getAttribLocation(prg, "color"),
+];
 const attStride = [3, 3, 4];
 
 const timeUni = gl.getUniformLocation(prg, "time");
@@ -152,7 +154,11 @@ const prg2 = createProgram(
   createVertexShader(gl, vsmain),
   createFragmentShader(gl, fsmain)
 );
-const attLocation2 = [0, 1, 2];
+const attLocation2 = [
+  gl.getAttribLocation(prg, "position"),
+  gl.getAttribLocation(prg, "velocity"),
+  gl.getAttribLocation(prg, "color"),
+];
 const attStride2 = [3, 3, 4];
 
 const vpMatrixUni2 = gl.getUniformLocation(prg2, "vpMatrix");
@@ -196,12 +202,14 @@ const vbos = [
 ];
 
 // matrix
-const vMatrix = mat4();
-const pMatrix = mat4();
 const vpMatrix = mat4();
-lookAt(vMatrix, [0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
-perspective(pMatrix, 60, canvas.width / canvas.height, 0.1, 10.0);
-multiply(vpMatrix, pMatrix, vMatrix);
+{
+  const p = mat4();
+  const v = mat4();
+  lookAt(v, [0.0, 0.0, 3.0], [0.0, 0.0, 0.0], [0.0, 1.0, 0.0]);
+  perspective(p, 60, canvas.width / canvas.height, 0.1, 10.0);
+  multiply(vpMatrix, p, v);
+}
 
 // flags
 gl.disable(gl.DEPTH_TEST);
@@ -229,54 +237,57 @@ const render = () => {
   idx = 1 - idx;
 
   // program (GPGPU)
-  gl.useProgram(prg);
+  {
+    gl.useProgram(prg);
 
-  // set vbo
-  setAttributeVBO(gl, vbos[countIndex], attLocation, attStride);
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, vbos[invertIndex][0]);
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, vbos[invertIndex][1]);
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, vbos[invertIndex][2]);
+    // set vbo
+    setAttributeVBO(gl, vbos[countIndex], attLocation, attStride);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, vbos[invertIndex][0]);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, vbos[invertIndex][1]);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, vbos[invertIndex][2]);
 
-  // begin transform feedback
-  gl.enable(gl.RASTERIZER_DISCARD);
-  gl.beginTransformFeedback(gl.POINTS);
+    // begin transform feedback
+    gl.enable(gl.RASTERIZER_DISCARD);
+    gl.beginTransformFeedback(gl.POINTS);
 
-  // vertex transform
-  gl.uniform1f(timeUni, time);
-  gl.uniform2fv(mousePositionUni, mousePosition);
-  gl.uniform1f(mouseMovePowerUni, mouseMovePower);
-  gl.uniform1i(imageWidthUni, imageWidth);
-  gl.drawArrays(gl.POINTS, 0, position.length / 3);
+    // vertex transform
+    gl.uniform1f(timeUni, time);
+    gl.uniform2fv(mousePositionUni, mousePosition);
+    gl.uniform1f(mouseMovePowerUni, mouseMovePower);
+    gl.uniform1i(imageWidthUni, imageWidth);
+    gl.drawArrays(gl.POINTS, 0, position.length / 3);
 
-  // end transform feedback
-  gl.disable(gl.RASTERIZER_DISCARD);
-  gl.endTransformFeedback();
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-  gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, null);
+    // end transform feedback
+    gl.disable(gl.RASTERIZER_DISCARD);
+    gl.endTransformFeedback();
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
+    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, null);
+  }
 
-  // feedback
+  // feedback to screen
+  {
+    // clear
+    gl.clearColor(0.0, 0.0, 0.0, 1.0);
+    gl.clearDepth(1.0);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, canvas.width, canvas.height);
 
-  // clear
-  gl.clearColor(0.0, 0.0, 0.0, 1.0);
-  gl.clearDepth(1.0);
-  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-  gl.viewport(0, 0, canvas.width, canvas.height);
+    // program
+    gl.useProgram(prg2);
 
-  // program
-  gl.useProgram(prg2);
+    // set vbo
+    setAttributeVBO(gl, vbos[invertIndex], attLocation2, attStride2);
 
-  // set vbo
-  setAttributeVBO(gl, vbos[invertIndex], attLocation2, attStride2);
-
-  // push and render
-  gl.uniformMatrix4fv(vpMatrixUni2, false, vpMatrix);
-  gl.drawArrays(gl.POINTS, 0, position.length / 3);
-  //gl.drawArrays(gl.LINES, 0, position.length / 3);
-  //gl.drawArrays(gl.LINE_STRIP, 0, position.length / 3);
-  //gl.drawArrays(gl.LINE_LOOP, 0, position.length / 3);
-  
-  gl.flush();
+    // push and render
+    gl.uniformMatrix4fv(vpMatrixUni2, false, vpMatrix);
+    gl.drawArrays(gl.POINTS, 0, position.length / 3);
+    //gl.drawArrays(gl.LINES, 0, position.length / 3);
+    //gl.drawArrays(gl.LINE_STRIP, 0, position.length / 3);
+    //gl.drawArrays(gl.LINE_LOOP, 0, position.length / 3);
+    
+    gl.flush();
+  }
 
   // animation loop
   requestAnimationFrame(render);
