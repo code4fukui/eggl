@@ -26,10 +26,10 @@ onresize = () => {
 };
 onresize();
 
-const gl = canvas.getContext('webgl');
+const gl = canvas.getContext("webgl2");
 
-const vs = `
-attribute vec3 position;
+const vs = `#version 300 es
+in vec3 position;
 
 void main(void) {
   gl_Position = vec4(position, 1.0);
