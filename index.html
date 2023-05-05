@@ -1,4 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:"><script type="module" src="./glsl3.js"></script><script id="fs" type="x-shader/x-fragment" width=512>#version 300 es
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:"><script type="module" src="./fragment-shader.js"></script><fragment-shader width=512 hidden>#version 300 es
 precision highp float;
 
 // based on https://www.shadertoy.com/view/ll3SWl
@@ -61,7 +61,7 @@ void main() {
   uv.x *= resolution.x / resolution.y;
 
   vec3 campos = camera(time);
-  
+
   bool rotate = false;
   vec3 front;
   if (rotate) {
@@ -104,4 +104,18 @@ void main() {
 
   outColor = vec4(col, 1.0);
 }
-</script>
+</fragment-shader>
+雲
+
+<fragment-shader hidden>
+</fragment-shader>
+
+
+<style>
+fragment-shader {
+  x-width: 100vw;
+  x-height: 100vh;
+  width: 100vw;
+  height: 300px;
+}
+</style>
