@@ -20,16 +20,32 @@ const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
 canvas.onclick = () => canvas.requestFullscreen();
 document.body.style.margin = 0;
+const limitw = fs.getAttribute("width");
 onresize = () => {
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
+  const [w, h] = (() => {
+    if (!limitw) {
+      return [innerWidth, innerHeight];
+    } else if (innerWidth > innerHeight) {
+      const w = Math.min(innerWidth, limitw);
+      const h = w / innerWidth * innerHeight;
+      return [w, h];
+    } else {
+      const h = Math.min(innerHeight, limitw);
+      const w = h / innerHeight * innerWidth;
+      return [w, h];
+    }
+  })();
+  canvas.width = w;
+  canvas.height = h;
+  canvas.style.width = innerWidth + "px";
+  canvas.style.height = innerHeight + "px";
 };
 onresize();
 
-const gl = canvas.getContext("webgl");
+const gl = canvas.getContext("webgl2");
 
-const vs = `
-attribute vec3 position;
+const vs = `#version 300 es
+in vec3 position;
 
 void main(void) {
   gl_Position = vec4(position, 1.0);
