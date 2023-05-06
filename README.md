@@ -16,3 +16,5 @@ easy library for WebGL
 - [wgld.org | library: minMatrix.js リファレンス |](https://wgld.org/d/library/l001.html) → [mat4.js](mat4.js) では、destを先頭に変更している
 - [docs.gl](https://docs.gl/) - document of WebGL
 - [WebGL2 Fundamentals](https://webgl2fundamentals.org/) - WebGL2に特化した入門サイト
+- [Shadertoy BETA](https://www.shadertoy.com/)
+- [ShaderFrog](https://shaderfrog.com/app)
