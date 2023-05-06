@@ -4,10 +4,7 @@
 
 <script type="module">
 //import { mat4, identity, lookAt, perspective, multiply, rotate, translate, vec3, inverse, rotateQ, vec4, q2vec3 } from "./mat4.js";
-import * as mat4 from "https://glmatrix.net/src/mat4.js";
-import * as vec4 from "https://glmatrix.net/src/vec4.js";
-import * as vec3 from "https://glmatrix.net/src/vec3.js";
-import * as quat from "https://glmatrix.net/src/quat.js";
+import { mat4, vec4, vec3, quat } from "./glmatrix.js";
 import { createVertexShader, createFragmentShader, createProgram, setAttributeVBO, createVBO, createIBO } from "./glutil.js";
 import { torus } from "./torus.js";
 import { cube } from "./cube.js";
@@ -162,7 +159,7 @@ const draw = () => {
   //lookAt(vMatrix, camPosition, [0, 0, 0], camUpDirection);
   mat4.lookAt(vMatrix, camPosition, [0, 0, 0], camUpDirection);
   //perspective(pMatrix, 45, canvas.width / canvas.height, 0.1, 100);
-  mat4.perspective(pMatrix, 45, canvas.width / canvas.height, 0.1, 100);
+  mat4.perspective(pMatrix, 45 / 180 * Math.PI, canvas.width / canvas.height, 0.1, 100);
   //multiply(tmpMatrix, pMatrix, vMatrix);
   mat4.multiply(tmpMatrix, pMatrix, vMatrix);
 
