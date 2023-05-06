@@ -1,4 +1,23 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:"><script type="module" src="./fragment-shader.js"></script><fragment-shader width=512 hidden>#version 300 es
+<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:">
+<title>fragment-shader tag demo</title>
+</head><body>
+<h1>fragment-shader tag demo</h1>
+  
+<script type="module" src="./fragment-shader.js"></script>
+
+<style>
+body {
+  margin: 0;
+}
+fragment-shader {
+  x-width: 100vw;
+  x-height: 100vh;
+  width: 100vw;
+  height: 300px;
+}
+</style>
+  
+<fragment-shader width=512 hidden>#version 300 es
 precision highp float;
 
 // based on https://www.shadertoy.com/view/ll3SWl
@@ -145,11 +164,25 @@ void main(void) {
 </fragment-shader>
 ジュリア集合
 
-<style>
-fragment-shader {
-  x-width: 100vw;
-  x-height: 100vh;
-  width: 100vw;
-  height: 300px;
+<fragment-shader hidden>#version 300 es
+precision highp float;
+
+uniform float time;
+uniform vec2  mouse;
+uniform vec2  resolution;
+
+out vec4 outColor;
+
+void main(void) {
+  vec2 m = vec2(mouse.x * 2.0 - 1.0, -mouse.y * 2.0 + 1.0);
+  vec2 p = (gl_FragCoord.xy * 2.0 - resolution) / min(resolution.x, resolution.y);
+
+  // division
+  float t = 0.1 / length(m - p);
+
+  outColor = vec4(vec3(t), 1.0);
 }
-</style>
+</fragment-shader>
+オーブ
+
+</body></html>
