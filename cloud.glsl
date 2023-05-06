@@ -1,23 +1,4 @@
-<!DOCTYPE html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><link rel="icon" href="data:">
-<title>fragment-shader tag demo</title>
-</head><body>
-<h1>fragment-shader tag demo</h1>
-  
-<script type="module" src="./fragment-shader.js"></script>
-
-<style>
-body {
-  margin: 0;
-}
-fragment-shader {
-  x-width: 100vw;
-  x-height: 100vh;
-  width: 100vw;
-  height: 300px;
-}
-</style>
-  
-<fragment-shader width=512 hidden fullscreen>#version 300 es
+#version 300 es
 precision highp float;
 
 // based on https://www.shadertoy.com/view/ll3SWl
@@ -123,48 +104,3 @@ void main() {
 
   outColor = vec4(col, 1.0);
 }
-</fragment-shader>
-雲
-
-<fragment-shader hidden>#version 300 es
-precision highp float;
-
-uniform float time;
-uniform vec2  mouse;
-uniform vec2  resolution;
-
-out vec4 outColor;
-
-// HSV カラー生成関数
-vec3 hsv(float h, float s, float v) {
-  vec4 t = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
-  vec3 p = abs(fract(vec3(h) + t.xyz) * 6.0 - vec3(t.w));
-  return v * mix(vec3(t.x), clamp(p - vec3(t.x), 0.0, 1.0), s);
-}
-
-void main(void) {
-  vec2 m = vec2(mouse.x * 2.0 - 1.0, -mouse.y * 2.0 + 1.0);
-  vec2 p = (gl_FragCoord.xy * 2.0 - resolution) / min(resolution.x, resolution.y);
-  
-  int j = 0;
-  vec2 x = vec2(-0.345, 0.654);
-  //vec2 y = vec2(time * 0.05 - 1.0, 0.0);
-  vec2 y = vec2(sin(time * 0.02), 0.0);
-  vec2 z = p;
-  for(int i = 0; i < 360; i++){
-      j++;
-      if(length(z) > 2.0){break;}
-      z = vec2(z.x * z.x - z.y * z.y, 2.0 * z.x * z.y) + x + y;
-  }
-  
-  float h = abs(mod(time * 15.0 - float(j), 360.0) / 360.0);;
-  vec3 rgb = hsv(h, 1.0, 1.0);
-  outColor = vec4(rgb, 1.0);
-}
-</fragment-shader>
-ジュリア集合
-
-<fragment-shader src="orb.glsl" fullscreen></fragment-shader>
-オーブ
-
-</body></html>
