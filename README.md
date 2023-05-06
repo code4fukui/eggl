@@ -13,7 +13,7 @@ easy library for WebGL
 ## library
 
 - [wgld.org | library: minMatrix.js リファレンス |](https://wgld.org/d/library/l001.html) → [mat4.js](mat4.js) では、destを先頭に変更している
-- [glMatrix](https://glmatrix.net/) - mat4.js の上位互換的スタンダードライブラリ
+- [glMatrix](https://glmatrix.net/) - mat4.js の上位互換的行列計算スタンダードライブラリ
 
 ## reference
 
