@@ -51,12 +51,15 @@ export const createProgram = (gl, vs, fs, varyings = undefined) => {
 
 // VBOを生成する関数
 export const createVBO = (gl, data) => {
+  if (!(data instanceof Float32Array)) {
+    data = new Float32Array(data);
+  }
   // バッファオブジェクトの生成
   const vbo = gl.createBuffer();
   // バッファをバインドする
   gl.bindBuffer(gl.ARRAY_BUFFER, vbo);
   // バッファにデータをセット
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(data), gl.STATIC_DRAW);
+  gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW);
   // バッファのバインドを無効化
   gl.bindBuffer(gl.ARRAY_BUFFER, null);
   // 生成した VBO を返して終了
