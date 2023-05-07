@@ -1,6 +1,6 @@
 # eggl
  
-easy library for WebGL
+- easy library for WebGL ([glutil](glutil.js), [fragment-shader tag](fragment-shader.js), [GPGPU.js](GPGPU.js))
 
 ## demo
 
