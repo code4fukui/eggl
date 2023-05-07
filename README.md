@@ -9,7 +9,8 @@
 ## related
 
 - [WebGL2 GPGPU test](https://github.com/code4fukui/webgl2-gpgpu-test)
-- [GPGPU-examples](https://github.com/code4fukui/GPGPU-examples)
+- [fragment-shader tag examples](https://github.com/code4fukui/fragment-shader-examples)
+- [GPGPU examples](https://github.com/code4fukui/GPGPU-examples)
 
 ## library
 
