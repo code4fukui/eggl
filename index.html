@@ -6,6 +6,7 @@
 import { mat4, identity, lookAt, perspective, multiply, rotate, translate, vec3, inverse } from "./mat4.js";
 import { createVertexShader, createFragmentShader, createProgram, createVBO, setAttributeVBO } from "./glutil.js";
 import { waitImageLoad } from "https://js.sabae.cc/waitImageLoad.js";
+import { GPGPU } from "./GPGPU.js";
 
 const canvas = document.createElement("canvas");
 document.body.appendChild(canvas);
@@ -24,7 +25,7 @@ const touchHandler = (e) => {
 };
 addEventListener("touchstart", touchHandler, { passive: false });
 
-const vs = `#version 300 es
+const vstf = `#version 300 es
 in vec3 position;
 in vec3 velocity;
 in vec4 color;
@@ -55,17 +56,8 @@ void main() {
 }
 `;
 
-const fs = `#version 300 es
-precision highp float;
-
-void main() {
-  discard;
-}
-`;
-
 const vsmain = `#version 300 es
 in vec3 position;
-in vec3 velocity;
 in vec4 color;
 
 uniform mat4 vpMatrix;
@@ -90,26 +82,6 @@ void main() {
 }
 `;
 
-// canvas
-const mousePosition = [0.0, 0.0];
-let isMousedown = false;
-let mouseMovePower = 0.0;
-
-// mousemove event
-canvas.addEventListener("mousedown", (e) => {
-  isMousedown = true;
-  mouseMovePower = 1.0;
-}, false);
-canvas.addEventListener("mouseup", (e) => {
-  isMousedown = false;
-}, false);
-canvas.addEventListener("mousemove", (e) => {
-  const bound = e.currentTarget.getBoundingClientRect();
-  const x = e.clientX - bound.left;
-  const y = e.clientY - bound.top;
-  mousePosition[0] = x / bound.width * 2.0 - 1.0;
-  mousePosition[1] = -(y / bound.height * 2.0 - 1.0);
-}, false);
 
 // generate imagedata
 const img = new Image();
@@ -126,44 +98,8 @@ const targetImageData = ctx.getImageData(0, 0, imageWidth, imageHeight);
 
 // transform feedback object
 const gl = canvas.getContext("webgl2");
-const transformFeedback = gl.createTransformFeedback();
-gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, transformFeedback);
 
-// transform out shader
-const prg = createProgram(
-  gl,
-  createVertexShader(gl, vs),
-  createFragmentShader(gl, fs),
-  ["vPosition", "vVelocity", "vColor"] // out variable names
-);
-const attLocation = [
-  gl.getAttribLocation(prg, "position"),
-  gl.getAttribLocation(prg, "velocity"),
-  gl.getAttribLocation(prg, "color"),
-];
-const attStride = [3, 3, 4];
-
-const timeUni = gl.getUniformLocation(prg, "time");
-const mousePositionUni = gl.getUniformLocation(prg, "mousePosition");
-const mouseMovePowerUni = gl.getUniformLocation(prg, "mouseMovePower");
-const imageWidthUni = gl.getUniformLocation(prg, "imageWidth");
-
-// feedback in shader
-const prg2 = createProgram(
-  gl,
-  createVertexShader(gl, vsmain),
-  createFragmentShader(gl, fsmain)
-);
-const attLocation2 = [
-  gl.getAttribLocation(prg, "position"),
-  gl.getAttribLocation(prg, "velocity"),
-  gl.getAttribLocation(prg, "color"),
-];
-const attStride2 = [3, 3, 4];
-
-const vpMatrixUni2 = gl.getUniformLocation(prg2, "vpMatrix");
-
-// vertices
+// in vertices
 const position = [];
 const velocity = [];
 const color = [];
@@ -188,18 +124,30 @@ const color = [];
 }
 console.log(position.length / 3)
 
-// create vbo
-const vbos = [
-  [
-    createVBO(gl, position),
-    createVBO(gl, velocity),
-    createVBO(gl, color)
-  ], [
-    createVBO(gl, position),
-    createVBO(gl, velocity),
-    createVBO(gl, color)
-  ]
+// out vertices
+const vPosition = new Float32Array(position.length);
+const vVelocity = new Float32Array(velocity.length);
+const vColor = new Float32Array(color.length);
+
+const gpu = new GPGPU(gl, vstf, { position, velocity, color }, { vPosition, vVelocity, vColor });
+
+gpu.univ.imageWidth = imageWidth;
+
+
+// feedback in shader
+const prog2 = createProgram(
+  gl,
+  createVertexShader(gl, vsmain),
+  createFragmentShader(gl, fsmain)
+);
+const attLocation2 = [
+  gl.getAttribLocation(prog2, "position"),
+  gl.getAttribLocation(prog2, "color"),
 ];
+const attStride2 = [3, 4];
+
+const vpMatrixUni2 = gl.getUniformLocation(prog2, "vpMatrix");
+
 
 // matrix
 const vpMatrix = mat4();
@@ -218,17 +166,36 @@ gl.enable(gl.BLEND);
 gl.blendFuncSeparate(gl.SRC_ALPHA, gl.ONE, gl.ONE, gl.ONE);
 gl.disable(gl.RASTERIZER_DISCARD);
 
+// ui
+gpu.univ.mousePosition = [0.0, 0.0];
+let isMousedown = false;
+gpu.univ.mouseMovePower = 0.0;
+
+// mousemove event
+canvas.addEventListener("mousedown", (e) => {
+  isMousedown = true;
+  gpu.univ.mouseMovePower = 1.0;
+}, false);
+canvas.addEventListener("mouseup", (e) => {
+  isMousedown = false;
+}, false);
+canvas.addEventListener("mousemove", (e) => {
+  const bound = e.currentTarget.getBoundingClientRect();
+  const x = e.clientX - bound.left;
+  const y = e.clientY - bound.top;
+  gpu.univ.mousePosition[0] = x / bound.width * 2.0 - 1.0;
+  gpu.univ.mousePosition[1] = -(y / bound.height * 2.0 - 1.0);
+}, false);
 // setting
 const startTime = performance.now();
-let time = 0;
 let idx = 0;
 
 const render = () => {
-  time = performance.now() - startTime;
+  gpu.univ.time = performance.now() - startTime;
 
   // mouse move power
   if (!isMousedown) {
-    mouseMovePower *= 0.97;
+    gpu.univ.mouseMovePower *= 0.97;
   }
 
   // increment
@@ -236,34 +203,8 @@ const render = () => {
   const invertIndex = 1 - countIndex;
   idx = 1 - idx;
 
-  // program (GPGPU)
-  {
-    gl.useProgram(prg);
-
-    // set vbo
-    setAttributeVBO(gl, vbos[countIndex], attLocation, attStride);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, vbos[invertIndex][0]);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, vbos[invertIndex][1]);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, vbos[invertIndex][2]);
-
-    // begin transform feedback
-    gl.enable(gl.RASTERIZER_DISCARD);
-    gl.beginTransformFeedback(gl.POINTS);
-
-    // vertex transform
-    gl.uniform1f(timeUni, time);
-    gl.uniform2fv(mousePositionUni, mousePosition);
-    gl.uniform1f(mouseMovePowerUni, mouseMovePower);
-    gl.uniform1i(imageWidthUni, imageWidth);
-    gl.drawArrays(gl.POINTS, 0, position.length / 3);
-
-    // end transform feedback
-    gl.disable(gl.RASTERIZER_DISCARD);
-    gl.endTransformFeedback();
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 0, null);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 1, null);
-    gl.bindBufferBase(gl.TRANSFORM_FEEDBACK_BUFFER, 2, null);
-  }
+  // program (GPU)
+  const res = gpu.calc(true);
 
   // feedback to screen
   {
@@ -274,10 +215,10 @@ const render = () => {
     gl.viewport(0, 0, canvas.width, canvas.height);
 
     // program
-    gl.useProgram(prg2);
+    gl.useProgram(prog2);
 
     // set vbo
-    setAttributeVBO(gl, vbos[invertIndex], attLocation2, attStride2);
+    setAttributeVBO(gl, [res[0], res[2]], attLocation2, attStride2);
 
     // push and render
     gl.uniformMatrix4fv(vpMatrixUni2, false, vpMatrix);
