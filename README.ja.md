@@ -1,30 +1,28 @@
 # eggl
 
-> 日本語のREADMEはこちらです: [README.ja.md](README.ja.md)
+WebGL 2.0の開発を簡略化するための、軽量でモジュール化されたユーティリティのコレクションです。
 
-A collection of lightweight, modular utilities to simplify WebGL 2.0 development.
-
-## Demo
+## デモ
 
 - https://code4fukui.github.io/eggl/
 
-## Features
+## 機能
 
--   **`glutil.js`**: Helper functions for common WebGL tasks like shader compilation, program linking, and buffer creation (VBO, IBO, VAO).
--   **`<fragment-shader>`**: A custom HTML element to easily embed and render full-screen fragment shaders with automatic `time`, `mouse`, and `resolution` uniforms.
--   **`GPGPU.js`**: A simple class for General-Purpose GPU computing using WebGL2's Transform Feedback feature.
--   **`mat4.js`**: A compact library for 4x4 matrix and vector math, essential for 3D transformations.
--   **Geometry Generators**: Functions to create procedural geometry for shapes like `torus`, `sphere`, and `cube`.
+- **`glutil.js`**: シェーダーのコンパイル、プログラムのリンク、バッファ（VBO、IBO、VAO）の作成など、一般的なWebGLタスクを補助するヘルパー関数。
+- **`<fragment-shader>`**: `time`、`mouse`、`resolution`のuniform変数を自動的に設定し、フルスクリーンでフラグメントシェーダーを簡単に埋め込んでレンダリングするためのカスタムHTML要素。
+- **`GPGPU.js`**: WebGL2のTransform Feedback機能を使用した、GPGPU（汎用GPU）コンピューティングのためのシンプルなクラス。
+- **`mat4.js`**: 3D変換に不可欠な、4x4行列とベクトルの計算を行うコンパクトなライブラリ。
+- **ジオメトリジェネレータ**: `torus`、`sphere`、`cube`などの形状のプロシージャルなジオメトリを生成する関数。
 
-## Requirements
+## 必要条件
 
--   A browser that supports WebGL 2.0 is required for `GPGPU.js` and the `<fragment-shader>` element.
+- `GPGPU.js`および`<fragment-shader>`要素を使用するには、WebGL 2.0をサポートするブラウザが必要です。
 
-## Usage
+## 使い方
 
-### 1. Basic 3D Scene
+### 1. 基本的な3Dシーン
 
-This example renders a lit, rotating torus, demonstrating the use of `glutil.js`, `mat4.js`, and `torus.js`.
+この例では、`glutil.js`、`mat4.js`、`torus.js`の使用例として、ライティングされた回転するトーラスをレンダリングします。
 
 ```html
 <!DOCTYPE html>
@@ -124,9 +122,9 @@ This example renders a lit, rotating torus, demonstrating the use of `glutil.js`
 </html>
 ```
 
-### 2. `<fragment-shader>` Element
+### 2. `<fragment-shader>`要素
 
-Embed a fragment shader directly into your HTML. The shader automatically receives `time`, `mouse`, and `resolution` uniforms.
+HTMLにフラグメントシェーダーを直接埋め込みます。シェーダーは自動的に`time`、`mouse`、`resolution`のuniform変数を受け取ります。
 
 ```html
 <script type="module" src="./fragment-shader.js"></script>
@@ -154,11 +152,9 @@ void main() {
 </fragment-shader>
 ```
 
-You can also load the shader from an external file:
+外部ファイルからシェーダーを読み込むこともできます。
 
 ```html
 <script type="module" src="./fragment-shader.js"></script>
 <fragment-shader src="my-shader.frag"></fragment-shader>
 ```
-
-###
